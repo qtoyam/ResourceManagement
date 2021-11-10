@@ -1,0 +1,203 @@
+using System;
+using System.Collections.ObjectModel;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+
+using Microsoft.Win32;
+
+using ResourceManagerUI.Models;
+
+using RMWriter;
+
+using WPFCoreEx.Bases;
+
+namespace ResourceManager.ViewModels
+{
+	public enum CurrentState
+	{
+		None = 0,
+		New = 1,
+		Edit = 2,
+		Preview = 4
+	}
+
+	public class ResourceManagerVM : NotifyPropBase
+	{
+		private readonly ResourcePacker _resourceUnpacker = new();
+
+		public ObservableCollection<ResourceItem> Resources { get; } = new();
+
+		private ResourceItem _selectedResource = null;
+		public ResourceItem SelectedResource
+		{
+			get { return _selectedResource; }
+			set
+			{
+				if (_selectedResource != value)
+				{
+					_selectedResource = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		private int _selectedResourceIndex = -1;
+		public int SelectedResourceIndex
+		{
+			get { return _selectedResourceIndex; }
+			set
+			{
+				if (_selectedResourceIndex != value)
+				{
+					_selectedResourceIndex = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		private CurrentState _currentState = CurrentState.None;
+		public CurrentState CurrentState
+		{
+			get => _currentState;
+			private set
+			{
+				if (_currentState != value)
+				{
+					_currentState = value;
+					OnPropertyChanged();
+					HandleCurrentState(_currentState);
+				}
+			}
+		}
+
+		private void HandleCurrentState(CurrentState c)
+		{
+			switch (c)
+			{
+				case CurrentState.None:
+					SelectedResourceIndex = -1;
+					EditableResource = null;
+					break;
+				case CurrentState.New:
+					SelectedResourceIndex = -1;
+					EditableResource = new();
+					break;
+				case CurrentState.Edit:
+					EditableResource = SelectedResource.DeepCopy();
+					break;
+				case CurrentState.Preview:
+					TryPreviewResource(SelectedResource);
+					break;
+				default:
+					throw new NotImplementedException();
+			}
+		}
+
+		#region Editable resource
+		private ResourceItem? _editableResource;
+		public ResourceItem? EditableResource
+		{
+			get { return _editableResource; }
+			set
+			{
+				if (_editableResource != value)
+				{
+					_editableResource = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		private RelayCommand selectPathCommand;
+		public ICommand SelectPathCommand => selectPathCommand ??= new RelayCommand(SelectPath);
+		private void SelectPath(object commandParameter)
+		{
+			var ofd = new OpenFileDialog
+			{
+				Multiselect = false
+			};
+			var res = ofd.ShowDialog();
+			if (res.HasValue && res.Value)
+			{
+				EditableResource.Path = ofd.FileName;
+			}
+		}
+
+		private RelayCommand saveResourceCommand;
+		public ICommand SaveResourceCommand => saveResourceCommand ??= new RelayCommand(SaveResource);
+		private void SaveResource(object commandParameter)
+		{
+			if (CurrentState == CurrentState.New)
+			{
+				Resources.Add(EditableResource);
+			}
+			else if (CurrentState == CurrentState.Edit)
+			{
+				Resources[SelectedResourceIndex] = EditableResource;
+			}
+			CurrentState = CurrentState.None;
+		}
+
+		private RelayCommand cancelSaveResourceCommand;
+		public ICommand CancelSaveResourceCommand => cancelSaveResourceCommand ??= new RelayCommand(CancelSaveResource);
+		private void CancelSaveResource(object commandParameter)
+		{
+			CurrentState = CurrentState.None;
+		}
+
+		#region New resource
+		private RelayCommand addResourceCommand;
+		public ICommand AddResourceCommand => addResourceCommand ??= new RelayCommand(AddResource);
+		private void AddResource(object commandParameter)
+		{
+			CurrentState = CurrentState.New;
+		}
+		#endregion //New resource
+
+		#region Edit current resource
+		private RelayCommand editResourceCommand;
+		public ICommand EditResourceCommand => editResourceCommand ??= new RelayCommand(EditResource);
+		private void EditResource(object commandParameter)
+		{
+			CurrentState = CurrentState.Edit;
+		}
+		#endregion //Edit current resource
+
+		#endregion //Editable resource
+
+		#region Preview resource
+		private BitmapImage? _previewImage = null;
+		public BitmapImage? PreviewImage
+		{
+			get { return _previewImage; }
+			set
+			{
+				if (_previewImage != value)
+				{
+					_previewImage = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		private void TryPreviewResource(ResourceItem rs)
+		{
+			try
+			{
+				PreviewImage = new();
+				PreviewImage.BeginInit();
+				PreviewImage.CacheOption = BitmapCacheOption.OnDemand;
+				PreviewImage.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+				PreviewImage.UriSource = new(SelectedResource.Path);
+				PreviewImage.EndInit();
+			}
+			catch
+			{
+				PreviewImage = null;
+			}
+		}
+		#endregion //Preview resource
+	}
+}

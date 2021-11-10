@@ -1,0 +1,397 @@
+﻿<Window x:Class="ResourceManagerUI.Views.ResourceManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vms="clr-namespace:ResourceManagerUI.ViewModels"
+		xmlns:vmm="clr-namespace:ResourceManagerUI.Models"
+		xmlns:exc="clr-namespace:WPFCoreEx.Controls;assembly=WPFCoreEx"
+		xmlns:exi="clr-namespace:WPFCoreEx.Behaviors;assembly=WPFCoreEx"
+		xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+		xmlns:exconv="clr-namespace:WPFCoreEx.Converters;assembly=WPFCoreEx"
+        mc:Ignorable="d"
+        Title="Resource Manager"
+		Background="{DynamicResource LeftPanelTopColor}"
+		d:DataContext="{d:DesignInstance Type=vms:ResourceManagerVM, IsDesignTimeCreatable=True}"
+		Height="400" Width="600"
+		MinHeight="400" MinWidth="600"
+		IsHitTestVisible="{Binding WindowEnabled}">
+	<Window.DataContext>
+		<vms:ResourceManagerVM/>
+	</Window.DataContext>
+	<Window.Resources>
+		<ResourceDictionary>
+			<ResourceDictionary.MergedDictionaries>
+				<ResourceDictionary Source="..\RDictionaries\Icons.xaml"/>
+			</ResourceDictionary.MergedDictionaries>
+		</ResourceDictionary>
+	</Window.Resources>
+	<Grid>
+		<Grid x:Name="Main_grid">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="300" MinWidth="300"/>
+				<ColumnDefinition Width="2"/>
+				<ColumnDefinition Width="1*"/>
+			</Grid.ColumnDefinitions>
+			<Grid x:Name="Left_grid" Grid.Column="0" IsEnabled="{Binding EditableResource, Converter={exconv:ObjectNullBooleanConverter}}">
+				<Grid.RowDefinitions>
+					<RowDefinition Height="100"/>
+					<RowDefinition Height="*"/>
+					<RowDefinition Height="40"/>
+				</Grid.RowDefinitions>
+				<Grid x:Name="Top_controls" Grid.Row="0" Background="{DynamicResource LeftPanelTopColor}"
+				  VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition/>
+						<ColumnDefinition/>
+						<ColumnDefinition/>
+					</Grid.ColumnDefinitions>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="0.5*"/>
+					</Grid.RowDefinitions>
+					<Button Content="Add" MinWidth="75"
+						VerticalAlignment="Center" HorizontalAlignment="Center"
+						Command="{Binding BeginAddResourceCommand}"
+						Grid.Row="0" Grid.Column="0"/>
+					<Button Content="Edit" MinWidth="75"
+						VerticalAlignment="Center" HorizontalAlignment="Center"
+						Command="{Binding BeginEditResourceCommand}"
+						Grid.Row="0" Grid.Column="1"/>
+					<Button Content="Remove" MinWidth="75"
+						VerticalAlignment="Center" HorizontalAlignment="Center"
+						Command="{Binding RemoveResourceCommand}"
+						Grid.Row="0" Grid.Column="2"/>
+
+					<exc:ButtonEx x:Name="buttonEx" ButtonBehavior="ImageWithOpacity"
+							  Grid.Row="1" Grid.Column="0" RenderTransformOrigin="0.5,0.5"
+							  Command="{Binding RefreshResourcesCommand}" HorizontalAlignment="Center" VerticalAlignment="Center">
+						<Image x:Name="img1" Source="{StaticResource refreshDrawingImage}" Width="20"/>
+					</exc:ButtonEx>
+					<CheckBox Foreground="Cyan" Content="Auto-preview"
+						  VerticalAlignment="Center" HorizontalAlignment="Center"
+						  IsChecked="{Binding AutoPreview, Mode=OneWayToSource}"
+						  Grid.Row="1" Grid.Column="1"/>
+				</Grid>
+
+				<StackPanel x:Name="Bottom_controls" Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
+					   Background="{DynamicResource LeftPanelTopColor}"
+					   >
+					<Button Content="Save" MinWidth="75" Margin="0,0,20,0"
+						Command="{Binding SaveCommand}"/>
+					<Button Content="Save as" MinWidth="75" Margin="0,0,20,0"
+						Command="{Binding SaveAsCommand}"/>
+					<Button Content="Build" MinWidth="75"
+						Command="{Binding BuildAsyncCommand}"/>
+				</StackPanel>
+				<Border x:Name="ResourcesBorder" Grid.Row="1" Background="{DynamicResource LeftPanelBottomColor}">
+					<i:Interaction.Behaviors >
+						<exi:CommandOnClickBehavior Command="{Binding ClearPreviewCommand}"/>
+					</i:Interaction.Behaviors>
+					<DataGrid x:Name="Resources_DataGrid" ItemsSource="{Binding Resources}"
+						  VerticalAlignment="Top"
+						  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden"
+						  Background="Transparent" RowBackground="Transparent" Foreground="Transparent"
+						  BorderThickness="0" BorderBrush="Transparent"
+						  AutoGenerateColumns="False" HeadersVisibility="Column" GridLinesVisibility="None"
+						  CanUserDeleteRows="False" CanUserAddRows="False"
+						  ColumnHeaderStyle="{DynamicResource ColumnHeaderBase}" CellStyle="{DynamicResource CellStyleBase}" 
+						  SelectedIndex="{Binding SelectedResourceIndex, Mode=TwoWay}"
+						  SelectedItem="{Binding SelectedResource, Mode=OneWayToSource}">
+						<DataGrid.Resources>
+							<Style x:Key="ColumnHeaderBase" TargetType="{x:Type DataGridColumnHeader}">
+								<Setter Property="Background" Value="Transparent"/>
+								<Setter Property="Foreground" Value="White"/>
+							</Style>
+							<Style x:Key="ColumnHeaderCenter" TargetType="{x:Type DataGridColumnHeader}" BasedOn="{StaticResource ColumnHeaderBase}">
+								<Setter Property="HorizontalContentAlignment" Value="Center"/>
+								<Setter Property="VerticalContentAlignment" Value="Center"/>
+							</Style>
+							<Style x:Key="CellStyleBase" TargetType="{x:Type DataGridCell}">
+								<Setter Property="Padding" Value="0,0,0,0"/>
+								<Setter Property="Background" Value="Transparent"/>
+								<Setter Property="Foreground" Value="Cyan"/>
+								<Setter Property="BorderThickness" Value="0"/>
+								<Setter Property="BorderBrush" Value="Transparent"/>
+								<Setter Property="Template">
+									<Setter.Value>
+										<ControlTemplate TargetType="{x:Type DataGridCell}">
+											<Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"
+								   Padding="{TemplateBinding Padding}">
+												<ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" Margin="0"/>
+											</Border>
+										</ControlTemplate>
+									</Setter.Value>
+								</Setter>
+								<Style.Triggers>
+									<Trigger Property="IsSelected" Value="True">
+										<Setter Property="Background" Value="DarkMagenta"/>
+									</Trigger>
+								</Style.Triggers>
+							</Style>
+							<Style x:Key="TextColumnElementStyle" TargetType="{x:Type TextBlock}">
+								<Setter Property="Margin" Value="0,0,5,0"/>
+							</Style>
+						</DataGrid.Resources>
+						<DataGrid.Columns>
+							<DataGridCheckBoxColumn 
+							Binding="{Binding Include, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+							Width="Auto"
+							CanUserResize="False">
+								<DataGridCheckBoxColumn.ElementStyle>
+									<Style TargetType="{x:Type CheckBox}">
+										<Setter Property="HorizontalAlignment" Value="Center"/>
+										<Setter Property="VerticalAlignment" Value="Center"/>
+									</Style>
+								</DataGridCheckBoxColumn.ElementStyle>
+								<DataGridCheckBoxColumn.HeaderStyle>
+									<Style TargetType="{x:Type DataGridColumnHeader}" BasedOn="{StaticResource ColumnHeaderCenter}">
+										<EventSetter Event="Control.PreviewMouseDoubleClick" Handler="DataGridColumnHeader_PreviewMouseDoubleClick"/>
+									</Style>
+								</DataGridCheckBoxColumn.HeaderStyle>
+							</DataGridCheckBoxColumn>
+							<DataGridTemplateColumn Width="Auto" HeaderStyle="{StaticResource ColumnHeaderCenter}"
+												CanUserResize="False">
+								<DataGridTemplateColumn.CellTemplate>
+									<DataTemplate>
+										<Canvas>
+											<Image Source="{StaticResource checkmarkDrawingImage}" Height="14" Visibility="{Binding Size, Converter={exconv:ObjectNotNullVisibilityConverter}}"/>
+											<Image Source="{StaticResource alertDrawingImage}" Height="14" Visibility="{Binding Size, Converter={exconv:ObjectNullVisibilityConverter}}"/>
+										</Canvas>
+									</DataTemplate>
+								</DataGridTemplateColumn.CellTemplate>
+							</DataGridTemplateColumn>
+							<DataGridTextColumn Header="Name" Binding="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="0.5*" ElementStyle="{StaticResource TextColumnElementStyle}"/>
+							<DataGridTextColumn Header="Size (bytes)" Binding="{Binding Size}" Width="70" IsReadOnly="True" ElementStyle="{StaticResource TextColumnElementStyle}"/>
+							<DataGridTextColumn Header="Path" Binding="{Binding Path, Mode=OneWay}" Width="*" IsReadOnly="True" ElementStyle="{StaticResource TextColumnElementStyle}">
+								<DataGridTextColumn.CellStyle>
+									<Style TargetType="{x:Type DataGridCell}" BasedOn="{StaticResource CellStyleBase}">
+										<Setter Property="ToolTip" Value="{Binding Path}"/>
+									</Style>
+								</DataGridTextColumn.CellStyle>
+							</DataGridTextColumn>
+						</DataGrid.Columns>
+						<DataGrid.InputBindings>
+							<KeyBinding Key="Space" Command="{Binding SelectShorcutCommand}"/>
+						</DataGrid.InputBindings>
+					</DataGrid>
+				</Border>
+			</Grid>
+			<GridSplitter x:Name="Main_grid_splitter" Grid.Column="1"
+					  HorizontalAlignment="Stretch"
+					  VerticalAlignment="Stretch"
+					  ShowsPreview="False"
+					  Background="{DynamicResource LeftPanelTopColor}"/>
+			<Grid x:Name="Right_grid" Grid.Column="2" Background="#FF120B24">
+				<StackPanel x:Name="Edit_panel" VerticalAlignment="Center" Orientation="Vertical"
+						Visibility="{Binding EditableResource, Mode=OneWay, Converter={exconv:ObjectNotNullVisibilityConverter}}"
+						Margin="10,0,10,0">
+					<exc:TextBoxEx HintText="Name.." Margin="0,0,0,25" Height="24" Text="{Binding EditableResource.Name}"/>
+
+					<DockPanel Margin="0,0,0,25" Height="24">
+						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" DockPanel.Dock="Right" Command="{Binding SelectPathCommand}">
+							<Image Source="{StaticResource compass__1_DrawingImage}"/>
+						</exc:ButtonEx>
+						<exc:TextBoxEx HintText="Path.." Text="{Binding EditableResource.Path, Mode=TwoWay}"/>
+					</DockPanel>
+
+					<TextBlock Foreground="DarkCyan" HorizontalAlignment="Center" Height="24" Text="{Binding EditableResource.FormattedSize, Mode=OneWay, TargetNullValue='File not found'}"/>
+
+					<DockPanel Height="48" LastChildFill="False">
+						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" Command="{Binding SaveResourceCommand}" DockPanel.Dock="Left">
+							<Image Source="{StaticResource clipbDrawingImage}" Height="48"/>
+						</exc:ButtonEx>
+						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" Command="{Binding ClearPreviewCommand}" DockPanel.Dock="Right">
+							<Image Source="{StaticResource trashDrawingImage}"/>
+						</exc:ButtonEx>
+					</DockPanel>
+				</StackPanel>
+				<Grid x:Name="Preview_panel"
+				Visibility="{Binding CurrentState, Converter={exconv:EnumEqualsVisibilityConverter}, ConverterParameter={x:Static vms:CurrentState.Preview}, Mode=OneWay}">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="*"/>
+						<RowDefinition Height="Auto"/>
+						<RowDefinition Height="Auto"/>
+					</Grid.RowDefinitions>
+					<TextBlock Grid.Row="0" Text="Preview:" FontSize="24" Foreground="Aqua"/>
+					<Border x:Name="Content_border" Grid.Row="1" BorderThickness="4" BorderBrush="Aqua">
+						<Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+							<TextBlock Text="Preview not supported" Foreground="LightCyan"
+								   Visibility="{Binding SelectedResource.ContentType, 
+							Converter={exconv:EnumEqualsVisibilityConverter}, 
+							ConverterParameter={x:Static vmm:ContentType.NotSupported}, Mode=OneWay}"/>
+							<TextBlock Text="File not found" Foreground="LightCoral"
+								   Visibility="{Binding SelectedResource.ContentType, 
+							Converter={exconv:EnumEqualsVisibilityConverter}, 
+							ConverterParameter={x:Static vmm:ContentType.FileNotFound}, Mode=OneWay}"/>
+							<Image Source="{Binding SelectedResource.ContentPreview}"
+							   Visibility="{Binding SelectedResource.ContentType, 
+							Converter={exconv:EnumEqualsVisibilityConverter}, 
+							ConverterParameter={x:Static vmm:ContentType.Image}, Mode=OneWay}"/>
+							<Button Content="Try preview" VerticalAlignment="Center" HorizontalAlignment="Center"
+								Command="{Binding TryPreviewResourceCommand}"
+								Padding="10">
+								<Button.Visibility>
+									<MultiBinding Converter="{exconv:AndVisibilityConverter}">
+										<Binding Path="AutoPreview" Converter="{exconv:InverseBooleanConverter}"/>
+										<Binding Path="SelectedResource.ContentType" Converter="{exconv:EnumZeroBooleanConverter}"/>
+									</MultiBinding>
+								</Button.Visibility>
+							</Button>
+						</Grid>
+					</Border>
+
+					<TextBlock Grid.Row="2" Text="Info:" FontSize="24" Foreground="#FF64C364"/>
+					<Border Grid.Row="3" BorderThickness="4" BorderBrush="#FF64C364" MinHeight="40" Padding="20">
+						<Grid>
+							<Grid.Resources>
+								<Style TargetType="TextBox">
+									<Setter Property="IsReadOnly" Value="True"/>
+									<Setter Property="FontSize" Value="20"/>
+									<Setter Property="Foreground" Value="#FF64C364"/>
+									<Setter Property="Background" Value="Transparent"/>
+									<Setter Property="BorderBrush" Value="Transparent"/>
+									<Setter Property="BorderThickness" Value="0"/>
+								</Style>
+								<Style TargetType="TextBlock">
+									<Setter Property="FontSize" Value="20"/>
+									<Setter Property="Foreground" Value="#FF64C364"/>
+									<Setter Property="Background" Value="Transparent"/>
+								</Style>
+							</Grid.Resources>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="Auto"/>
+								<ColumnDefinition/>
+							</Grid.ColumnDefinitions>
+							<Grid.RowDefinitions>
+								<RowDefinition/>
+								<RowDefinition/>
+								<RowDefinition/>
+							</Grid.RowDefinitions>
+							<TextBlock Text="Name: " 
+								   Grid.Row="0" Grid.Column="0"/>
+							<ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
+									  Grid.Row="0" Grid.Column="1">
+								<TextBox Text="{Binding SelectedResource.Name}"
+										 ToolTip="{Binding SelectedResource.Name}"/>
+							</ScrollViewer>
+
+							<TextBlock Text="Path:"
+								   Grid.Row="1" Grid.Column="0"/>
+							<ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
+									  Grid.Row="1" Grid.Column="1">
+								<TextBox Text="{Binding SelectedResource.Path}"
+										 ToolTip="{Binding SelectedResource.Path}"/>
+							</ScrollViewer>
+
+							<TextBlock Text="Size:" 
+								   Grid.Row="2" Grid.Column="0"/>
+							<ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
+									  Grid.Row="2" Grid.Column="1">
+								<TextBox Text="{Binding SelectedResource.FormattedSize, Mode=OneWay}">
+									<TextBox.ToolTip>
+										<TextBlock Text="{Binding SelectedResource.Size, Mode=OneWay, StringFormat={}{0:N0} bytes}"/>
+									</TextBox.ToolTip>
+								</TextBox>
+							</ScrollViewer>
+						</Grid>
+					</Border>
+				</Grid>
+			</Grid>
+		</Grid>
+		<Border Background="#B6120B1B" Visibility="{Binding WindowEnabled, Converter={exconv:InverseBooleanVisibilityConverter}}">
+			<Image Source="{StaticResource SpinnerDrawingImage}">
+				<Image.Style>
+					<Style TargetType="Image">
+						<Style.Triggers>
+							<Trigger Property="IsVisible" Value="True">
+								<Trigger.EnterActions>
+									<BeginStoryboard Name="SpinnerAnimation">
+										<Storyboard RepeatBehavior="Forever">
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[0].Opacity"
+															 BeginTime="0:0:0.916">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[1].Opacity"
+															 BeginTime="0:0:0.833">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[2].Opacity"
+															 BeginTime="0:0:0.750">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[3].Opacity"
+															 BeginTime="0:0:0.666">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[4].Opacity"
+															 BeginTime="0:0:0.583">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[5].Opacity"
+															 BeginTime="0:0:0.500">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[6].Opacity"
+															 BeginTime="0:0:0.416">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[7].Opacity"
+															 BeginTime="0:0:0.333">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[8].Opacity"
+															 BeginTime="0:0:0.250">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[9].Opacity"
+															 BeginTime="0:0:0.166">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[10].Opacity"
+															 BeginTime="0:0:0.083">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+											<DoubleAnimationUsingKeyFrames RepeatBehavior="Forever"
+															 Storyboard.TargetProperty="Source.Drawing.Children[11].Opacity"
+															 BeginTime="0:0:0">
+												<LinearDoubleKeyFrame KeyTime="0:0:0" Value="1"/>
+												<LinearDoubleKeyFrame KeyTime="0:0:1" Value="0"/>
+											</DoubleAnimationUsingKeyFrames>
+										</Storyboard>
+									</BeginStoryboard>
+								</Trigger.EnterActions>
+								<Trigger.ExitActions>
+									<RemoveStoryboard BeginStoryboardName="SpinnerAnimation"/>
+								</Trigger.ExitActions>
+							</Trigger>
+						</Style.Triggers>
+					</Style>
+				</Image.Style>
+			</Image>
+		</Border>
+	</Grid>
+</Window>
