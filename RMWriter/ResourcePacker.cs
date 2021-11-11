@@ -75,53 +75,47 @@ namespace RMWriter
 				offset += HEADER_size_keys_table_SIZE;
 
 				//write keys_table
-				FileStream[] files = new FileStream[paths.Length];
-				try
+				await using (var fs = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
 				{
-					int keyCellsPerCycle = (buff.Length - HEADER_SIZE) / MAX_KEY_CELL_SIZE;
-					long pos_data = HEADER_SIZE + size_keys_table;
-					int iCell = 0;
-					while (true)
+					FileStream[] files = new FileStream[paths.Length];
+					try
 					{
-						int remainedItems = paths.Length - iCell;
-						int toI = remainedItems > keyCellsPerCycle ? keyCellsPerCycle : remainedItems;
-						for (; iCell < toI; iCell++)
+						long pos_data = HEADER_SIZE + size_keys_table;
+						for (int i = 0; i < paths.Length; i++)
 						{
-							var p = paths.Span[iCell];
+							var p = paths.Span[i];
+							byte nameL = (byte)p.name.Length; //length in bytes (cauze ASCII)
+							if (nameL + 1 > buff.Length - offset) //flush if no space
+							{
+								await fs.WriteAsync(buff[..offset]);
+								offset = 0;
+							}
 
 							//write key_cell
-							buff.Span[offset] = (byte)p.name.Length; //write 'size_name' to buff, length already checked so cast is safe
+							buff.Span[offset] = nameL; //write 'size_name' to buff, length already checked so cast is safe
 							offset += KEY_CELL_size_name_SIZE;
 
-							EncodeAscii(p.name, buff.Span.Slice(offset, ))
-							encoder.Convert(paths.Span[iCell].name, buff.Span.Slice(offset + 1, MaxBytesPerName), //slice MaxBytePerName count cauze it will ALWAYS be atleast this free space
-								true, out _, out _, out _); //write 'name' to buff
+							EncodeAscii(p.name, buff.Span.Slice(offset, nameL)); //write 'name'
+							offset += nameL;
 
+							WriteInt64(buff.Span.Slice(offset, KEY_CELL_pos_data_SIZE), pos_data); //write 'pos_data'
+							offset += KEY_CELL_pos_data_SIZE;
 
-
-							offset += KEY_CELL_pos_data_SIZE; //skip 'pos_data' //DEFAULT
-
-							WriteInt64(buff.Span.Slice(offset, KEY_CELL_size_data_SIZE), files[i].Length); //write 'size_data'
+							files[i] = new(p.filePath, FileMode.Open, FileAccess.Read,
+								FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan);
+							long fileL = files[i].Length;
+							WriteInt64(buff.Span.Slice(offset, KEY_CELL_size_data_SIZE), fileL); //write 'size_data'
 							offset += KEY_CELL_size_data_SIZE;
 
-							files[iCell] = new FileStream(paths.Span[iCell].filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan);
-						}
-						if (i == paths.Length) //break if we are done in this cycle
-						{
-							break;
-						}
-						else //flush if more keys
-						{
-							await fsOut.WriteAsync(buff[..offset]);
-							offset = 0;
+							pos_data += fileL; //move offset for next loop iteration
 						}
 					}
-				}
-				finally
-				{
-					for (i = 0; i < paths.Length; i++)
+					finally
 					{
-						if (files[i] != null) await files[i].DisposeAsync();
+						for (int i = 0; i < paths.Length; i++)
+						{
+							if (files[i] != null) await files[i].DisposeAsync();
+						}
 					}
 				}
 			}
