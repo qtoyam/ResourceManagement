@@ -1,126 +1,86 @@
 ﻿using System;
 using System.Buffers;
-using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RMWriter
 {
 	public class ResourcePacker
 	{
 
-		private const int HEADER_221_SIZE = sizeof(byte);
-		private const int HEADER_count_SIZE = sizeof(int);
-		private const int HEADER_size_keys_table_SIZE = sizeof(int);
+		//file structure
+		//	header:
+		//		count - int32
+		private const int COUNT_L = sizeof(int);
+		//		data_size[] - int32[count-1] //except last
+		private const int DATA_SIZE_L = sizeof(int);
+		//	data[] - (byte[])[count]
 
-		private const int HEADER_SIZE = 0 +
-			HEADER_221_SIZE +
-			HEADER_count_SIZE +
-			HEADER_size_keys_table_SIZE;
-
-
-		private const int KEY_CELL_size_name_SIZE = sizeof(byte);
-		public const int MaxBytesPerName = byte.MaxValue;
-		private const int KEY_CELL_pos_data_SIZE = sizeof(long);
-		private const int KEY_CELL_size_data_SIZE = sizeof(long);
-
-		private const int MAX_KEY_CELL_SIZE = KEY_CELL_size_name_SIZE //to store 'size_name'
-			+ MaxBytesPerName //to store 'name'
-			+ KEY_CELL_pos_data_SIZE //to store 'pos_data'
-			+ KEY_CELL_size_data_SIZE;//to store 'size_data'
-
-		/* file structure
-		* header:
-		*	'221' - byte
-		*	count - int32
-		*	size_keys_table - int32 //max >7kk keys, should be enough
-		* keys_table:
-		*	size_name - byte
-		*	name - size_name bytes (max 255 bytes)
-		*	pos_data - long
-		*	size_data - long
-		* data_raw:
-		*	data - size_data bytes
-		file structure */
-
-
-		public static async Task SaveToAsync(string fullPath, ReadOnlyMemory<(string name, string filePath)> paths)
+		public static async Task SaveToSlim(string path, IReadOnlyCollection<FileInfo> resources)
 		{
-			if (paths.Length < 1) throw new ArgumentException("Must be atleast 1 element", nameof(paths));
-			int size_keys_table = (KEY_CELL_size_name_SIZE + KEY_CELL_pos_data_SIZE + KEY_CELL_size_data_SIZE) * paths.Length;
-			for (int i = 0; i < paths.Length; i++)
-			{
-				var l = paths.Span[i].name.Length;
-				if (l > MaxBytesPerName)
-					throw new ArgumentOutOfRangeException(paths.Span[i].name, $"Max length of name is {MaxBytesPerName}, provided name is {l} length.");
-				size_keys_table += l;
-			}
-			//using (var pin_memH = memH.Memory.Pin()) //useful?
-			using (var memH = MemoryPool<byte>.Shared.Rent(4096 * 20)) //create temp buffer
+			if (resources.Count < 1) throw new ArgumentException("No resources to save.", nameof(resources));
+			const int MIN_BUFFER_LENGTH = 4096 * 20;
+			int header_size = COUNT_L + ((resources.Count - 1) * DATA_SIZE_L); //no last data_size (cauze it can be calculated)
+			using (var memH = MemoryPool<byte>.Shared.Rent(MIN_BUFFER_LENGTH))
 			{
 				var buff = memH.Memory;
-
-				//write header
-				int offset = 0;
-				buff.Span[offset] = 221; //write '221'
-				offset += HEADER_221_SIZE;
-
-				WriteInt32(buff.Span.Slice(offset, HEADER_count_SIZE), paths.Length); //write 'count'
-				offset += HEADER_count_SIZE;
-
-				WriteInt32(buff.Span.Slice(offset, HEADER_size_keys_table_SIZE), size_keys_table); //write 'size_keys_table'
-				offset += HEADER_size_keys_table_SIZE;
-
-				//write keys_table
-				await using (var fs = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
+				if (header_size > buff.Length) throw new ArgumentOutOfRangeException(nameof(resources), "Too much elements.");
+				var curr_buff = buff;
+				#region write 'header'
+				WriteInt32(curr_buff.Span, resources.Count); //write 'count'
+				WriteInt32(curr_buff.Span, COUNT_L, resources.SkipLast(1).Select(static f =>
 				{
-					FileStream[] files = new FileStream[paths.Length];
-					try
+					//check file length
+					var l = f.Length;
+					if (l > int.MaxValue) throw new ArgumentOutOfRangeException($"{f.FullName} length", $"Max file length {int.MaxValue}");
+					return (int)l;
+				})); //write 'data_size[]', skip last 'data_size'
+				curr_buff = curr_buff[header_size..];
+				#endregion //write 'header'
+				bool fileCreated = false;
+				try
+				{
+					await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
 					{
-						long pos_data = HEADER_SIZE + size_keys_table;
-						for (int i = 0; i < paths.Length; i++)
+						fileCreated = true;
+						if (curr_buff.Length == 0) //flush if fulled, can fail later if we dont check this before write 'data[]'
 						{
-							var p = paths.Span[i];
-							byte nameL = (byte)p.name.Length; //length in bytes (cauze ASCII)
-							if (nameL + 1 > buff.Length - offset) //flush if no space
+							await fs.WriteAsync(buff); //flush full buffer
+							curr_buff = buff; //reset current
+						}
+						foreach (var r in resources)
+						{
+							await using (var fsR = new FileStream(r.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
 							{
-								await fs.WriteAsync(buff[..offset]);
-								offset = 0;
+								#region write 'data[i]'
+								while (true)
+								{
+									var br = await fsR.ReadAsync(curr_buff);
+									curr_buff = curr_buff[br..];
+									if (curr_buff.Length > 0) //file end
+									{
+										break;
+									}
+									else //more data
+									{
+										await fs.WriteAsync(buff); //flush full buffer
+										curr_buff = buff; //reset current
+
+									}
+								}
+								#endregion //write 'data[i]'
 							}
-
-							//write key_cell
-							buff.Span[offset] = nameL; //write 'size_name' to buff, length already checked so cast is safe
-							offset += KEY_CELL_size_name_SIZE;
-
-							EncodeAscii(p.name, buff.Span.Slice(offset, nameL)); //write 'name'
-							offset += nameL;
-
-							WriteInt64(buff.Span.Slice(offset, KEY_CELL_pos_data_SIZE), pos_data); //write 'pos_data'
-							offset += KEY_CELL_pos_data_SIZE;
-
-							files[i] = new(p.filePath, FileMode.Open, FileAccess.Read,
-								FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan);
-							long fileL = files[i].Length;
-							WriteInt64(buff.Span.Slice(offset, KEY_CELL_size_data_SIZE), fileL); //write 'size_data'
-							offset += KEY_CELL_size_data_SIZE;
-
-							pos_data += fileL; //move offset for next loop iteration
 						}
+						if (curr_buff.Length > 0) await fs.WriteAsync(buff[..^curr_buff.Length]); //flush if some data
 					}
-					finally
-					{
-						for (int i = 0; i < paths.Length; i++)
-						{
-							if (files[i] != null) await files[i].DisposeAsync();
-						}
-					}
+
+
+				}
+				catch
+				{
+					if (fileCreated) File.Delete(path); //clean up if failed
+					throw;
 				}
 			}
 		}
-
 
 		private static void WriteInt32(Span<byte> dest, int value)
 		{
@@ -130,25 +90,16 @@ namespace RMWriter
 			dest[3] = (byte)(value >> 24);
 		}
 
-		private static void EncodeAscii(in ReadOnlySpan<char> input, Span<byte> buffer)
+		private static void WriteInt32(Span<byte> dest, int offset, IEnumerable<int> values)
 		{
-			for (int i = 0; i < input.Length; i++)
+			int c = offset;
+			foreach (var v in values)
 			{
-				if (input[i] > sbyte.MaxValue) throw new ArgumentException($"Non-ascii char {input[i]}");
-				buffer[i] = (byte)input[i];
+				dest[c++] = (byte)v;
+				dest[c++] = (byte)(v >> 8);
+				dest[c++] = (byte)(v >> 16);
+				dest[c++] = (byte)(v >> 24);
 			}
-		}
-
-		private static void WriteInt64(Span<byte> dest, long value)
-		{
-			dest[0] = (byte)value;
-			dest[1] = (byte)(value >> 8);
-			dest[2] = (byte)(value >> 16);
-			dest[3] = (byte)(value >> 24);
-			dest[4] = (byte)(value >> 32);
-			dest[5] = (byte)(value >> 40);
-			dest[6] = (byte)(value >> 48);
-			dest[7] = (byte)(value >> 56);
 		}
 	}
 }

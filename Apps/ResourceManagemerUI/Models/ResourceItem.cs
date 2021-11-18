@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 
+using RMWriter;
+
 using WPFCoreEx.Bases;
 
 namespace ResourceManagerUI.Models
@@ -167,22 +169,22 @@ namespace ResourceManagerUI.Models
 		}
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
-		private FileInfo _fileInfo;
-		internal FileInfo FileInfo => _fileInfo;
+		private FileInfo _file;
+		public FileInfo File => _file;
 		private void SetNewFile(string value)
 		{
-			_fileInfo = new(value);
+			_file = new(value);
 			RefreshFileInfo();
 		}
 
 		//TODO: check what happens when file is not allowed to read (locked)
 		internal void RefreshFileInfo()
 		{
-			_fileInfo.Refresh();
-			if (_fileInfo.Exists)
+			_file.Refresh();
+			if (_file.Exists)
 			{
-				if (string.IsNullOrEmpty(Name)) Name = _fileInfo.Name;
-				Size = _fileInfo.Length;
+				if (string.IsNullOrEmpty(Name)) Name = _file.Name;
+				Size = _file.Length;
 				if(_contentType == ContentType.FileNotFound)
 				{
 					ContentType = ContentType.None;
@@ -199,7 +201,7 @@ namespace ResourceManagerUI.Models
 		{
 			return new ResourceItem()
 			{
-				_fileInfo = new(this._path),
+				_file = new(this._path),
 				_include = this._include,
 				_name = this._name,
 				_path = this._path,

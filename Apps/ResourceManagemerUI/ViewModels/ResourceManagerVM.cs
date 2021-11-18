@@ -217,7 +217,7 @@ namespace ResourceManagerUI.ViewModels
 			var res = sfd.ShowDialog();
 			if (res.HasValue && res.Value)
 			{
-				await ResourcePacker.SaveToAsync(sfd.FileName, Resources.Select(x => (x.Name, x.FileInfo)).ToArray());
+				await ResourcePackerEx.SaveToAsync(sfd.FileName, Resources);
 			}
 			WindowEnabled = true;
 		}
