@@ -12,13 +12,10 @@
         mc:Ignorable="d"
         Title="Resource Manager"
 		Background="{DynamicResource LeftPanelTopColor}"
-		d:DataContext="{d:DesignInstance Type=vms:ResourceManagerVM, IsDesignTimeCreatable=True}"
 		Height="400" Width="600"
 		MinHeight="400" MinWidth="600"
-		IsHitTestVisible="{Binding WindowEnabled}">
-	<Window.DataContext>
-		<vms:ResourceManagerVM/>
-	</Window.DataContext>
+		d:DataContext="{d:DesignInstance Type=vms:ResourceManagerVM, IsDesignTimeCreatable=True}"
+		IsHitTestVisible="{Binding Free}">
 	<Window.Resources>
 		<ResourceDictionary>
 			<ResourceDictionary.MergedDictionaries>
@@ -26,7 +23,7 @@
 			</ResourceDictionary.MergedDictionaries>
 		</ResourceDictionary>
 	</Window.Resources>
-	<Grid>
+	<Grid x:Name="Window_grid">
 		<Grid x:Name="Main_grid">
 			<Grid.ColumnDefinitions>
 				<ColumnDefinition Width="300" MinWidth="300"/>
@@ -86,7 +83,7 @@
 				</StackPanel>
 				<Border x:Name="ResourcesBorder" Grid.Row="1" Background="{DynamicResource LeftPanelBottomColor}">
 					<i:Interaction.Behaviors >
-						<exi:CommandOnClickBehavior Command="{Binding ClearPreviewCommand}"/>
+						<exi:CommandOnClickBehavior Command="{Binding SetDefaultStateCommand}"/>
 					</i:Interaction.Behaviors>
 					<DataGrid x:Name="Resources_DataGrid" ItemsSource="{Binding Resources}"
 						  VerticalAlignment="Top"
@@ -97,7 +94,7 @@
 						  CanUserDeleteRows="False" CanUserAddRows="False"
 						  ColumnHeaderStyle="{DynamicResource ColumnHeaderBase}" CellStyle="{DynamicResource CellStyleBase}" 
 						  SelectedIndex="{Binding SelectedResourceIndex, Mode=TwoWay}"
-						  SelectedItem="{Binding SelectedResource, Mode=OneWayToSource}">
+								SelectedItem="{Binding SelectedResource, Mode=OneWayToSource}">
 						<DataGrid.Resources>
 							<Style x:Key="ColumnHeaderBase" TargetType="{x:Type DataGridColumnHeader}">
 								<Setter Property="Background" Value="Transparent"/>
@@ -134,22 +131,7 @@
 							</Style>
 						</DataGrid.Resources>
 						<DataGrid.Columns>
-							<DataGridCheckBoxColumn 
-							Binding="{Binding Include, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-							Width="Auto"
-							CanUserResize="False">
-								<DataGridCheckBoxColumn.ElementStyle>
-									<Style TargetType="{x:Type CheckBox}">
-										<Setter Property="HorizontalAlignment" Value="Center"/>
-										<Setter Property="VerticalAlignment" Value="Center"/>
-									</Style>
-								</DataGridCheckBoxColumn.ElementStyle>
-								<DataGridCheckBoxColumn.HeaderStyle>
-									<Style TargetType="{x:Type DataGridColumnHeader}" BasedOn="{StaticResource ColumnHeaderCenter}">
-										<EventSetter Event="Control.PreviewMouseDoubleClick" Handler="DataGridColumnHeader_PreviewMouseDoubleClick"/>
-									</Style>
-								</DataGridCheckBoxColumn.HeaderStyle>
-							</DataGridCheckBoxColumn>
+							<DataGridTextColumn Header="" Binding="{Binding Index, Mode=OneWay}" Width="Auto" ElementStyle="{StaticResource TextColumnElementStyle}"/>
 							<DataGridTemplateColumn Width="Auto" HeaderStyle="{StaticResource ColumnHeaderCenter}"
 												CanUserResize="False">
 								<DataGridTemplateColumn.CellTemplate>
@@ -171,9 +153,6 @@
 								</DataGridTextColumn.CellStyle>
 							</DataGridTextColumn>
 						</DataGrid.Columns>
-						<DataGrid.InputBindings>
-							<KeyBinding Key="Space" Command="{Binding SelectShorcutCommand}"/>
-						</DataGrid.InputBindings>
 					</DataGrid>
 				</Border>
 			</Grid>
@@ -189,7 +168,7 @@
 					<exc:TextBoxEx HintText="Name.." Margin="0,0,0,25" Height="24" Text="{Binding EditableResource.Name}"/>
 
 					<DockPanel Margin="0,0,0,25" Height="24">
-						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" DockPanel.Dock="Right" Command="{Binding SelectPathCommand}">
+						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" DockPanel.Dock="Right" Command="{Binding SelectResourcePathCommand}">
 							<Image Source="{StaticResource compass__1_DrawingImage}"/>
 						</exc:ButtonEx>
 						<exc:TextBoxEx HintText="Path.." Text="{Binding EditableResource.Path, Mode=TwoWay}"/>
@@ -198,16 +177,16 @@
 					<TextBlock Foreground="DarkCyan" HorizontalAlignment="Center" Height="24" Text="{Binding EditableResource.FormattedSize, Mode=OneWay, TargetNullValue='File not found'}"/>
 
 					<DockPanel Height="48" LastChildFill="False">
-						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" Command="{Binding SaveResourceCommand}" DockPanel.Dock="Left">
+						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" Command="{Binding EndEditResourceCommand}" DockPanel.Dock="Left">
 							<Image Source="{StaticResource clipbDrawingImage}" Height="48"/>
 						</exc:ButtonEx>
-						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" Command="{Binding ClearPreviewCommand}" DockPanel.Dock="Right">
+						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" Command="{Binding SetDefaultStateCommand}" DockPanel.Dock="Right">
 							<Image Source="{StaticResource trashDrawingImage}"/>
 						</exc:ButtonEx>
 					</DockPanel>
 				</StackPanel>
 				<Grid x:Name="Preview_panel"
-				Visibility="{Binding CurrentState, Converter={exconv:EnumEqualsVisibilityConverter}, ConverterParameter={x:Static vms:CurrentState.Preview}, Mode=OneWay}">
+				Visibility="{Binding CurrentState, Converter={exconv:EnumEqualsVisibilityConverter}, ConverterParameter={x:Static vms:CurrentState.SelectResource}, Mode=OneWay}">
 					<Grid.RowDefinitions>
 						<RowDefinition Height="Auto"/>
 						<RowDefinition Height="*"/>
@@ -218,15 +197,15 @@
 					<Border x:Name="Content_border" Grid.Row="1" BorderThickness="4" BorderBrush="Aqua">
 						<Grid HorizontalAlignment="Center" VerticalAlignment="Center">
 							<TextBlock Text="Preview not supported" Foreground="LightCyan"
-								   Visibility="{Binding SelectedResource.ContentType, 
+								   Visibility="{Binding SelectedResource.ContentCache.ContentType, 
 							Converter={exconv:EnumEqualsVisibilityConverter}, 
 							ConverterParameter={x:Static vmm:ContentType.NotSupported}, Mode=OneWay}"/>
 							<TextBlock Text="File not found" Foreground="LightCoral"
-								   Visibility="{Binding SelectedResource.ContentType, 
+								   Visibility="{Binding SelectedResource.ContentCache.ContentType, 
 							Converter={exconv:EnumEqualsVisibilityConverter}, 
 							ConverterParameter={x:Static vmm:ContentType.FileNotFound}, Mode=OneWay}"/>
-							<Image Source="{Binding SelectedResource.ContentPreview}"
-							   Visibility="{Binding SelectedResource.ContentType, 
+							<Image Source="{Binding SelectedResource.ContentCache.Content}"
+							   Visibility="{Binding SelectedResource.ContentCache.ContentType, 
 							Converter={exconv:EnumEqualsVisibilityConverter}, 
 							ConverterParameter={x:Static vmm:ContentType.Image}, Mode=OneWay}"/>
 							<Button Content="Try preview" VerticalAlignment="Center" HorizontalAlignment="Center"
@@ -235,7 +214,7 @@
 								<Button.Visibility>
 									<MultiBinding Converter="{exconv:AndVisibilityConverter}">
 										<Binding Path="AutoPreview" Converter="{exconv:InverseBooleanConverter}"/>
-										<Binding Path="SelectedResource.ContentType" Converter="{exconv:EnumZeroBooleanConverter}"/>
+										<Binding Path="SelectedResource.ContentCache.ContentType" Converter="{exconv:EnumZeroBooleanConverter}"/>
 									</MultiBinding>
 								</Button.Visibility>
 							</Button>
@@ -243,7 +222,8 @@
 					</Border>
 
 					<TextBlock Grid.Row="2" Text="Info:" FontSize="24" Foreground="#FF64C364"/>
-					<Border Grid.Row="3" BorderThickness="4" BorderBrush="#FF64C364" MinHeight="40" Padding="20">
+					<Border x:Name="Info_border" Grid.Row="3" BorderThickness="4" BorderBrush="#FF64C364" MinHeight="40" Padding="20"
+							DataContext="{Binding SelectedResource}">
 						<Grid>
 							<Grid.Resources>
 								<Style TargetType="TextBox">
@@ -273,25 +253,25 @@
 								   Grid.Row="0" Grid.Column="0"/>
 							<ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
 									  Grid.Row="0" Grid.Column="1">
-								<TextBox Text="{Binding SelectedResource.Name}"
-										 ToolTip="{Binding SelectedResource.Name}"/>
+								<TextBox Text="{Binding Name, Mode=OneWay}"
+										 ToolTip="{Binding Name, Mode=OneWay}"/>
 							</ScrollViewer>
 
 							<TextBlock Text="Path:"
 								   Grid.Row="1" Grid.Column="0"/>
 							<ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
 									  Grid.Row="1" Grid.Column="1">
-								<TextBox Text="{Binding SelectedResource.Path}"
-										 ToolTip="{Binding SelectedResource.Path}"/>
+								<TextBox Text="{Binding Path, Mode=OneWay}"
+										 ToolTip="{Binding Path, Mode=OneWay}"/>
 							</ScrollViewer>
 
 							<TextBlock Text="Size:" 
 								   Grid.Row="2" Grid.Column="0"/>
 							<ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="ScrollViewer_PreviewMouseWheel"
 									  Grid.Row="2" Grid.Column="1">
-								<TextBox Text="{Binding SelectedResource.FormattedSize, Mode=OneWay}">
+								<TextBox Text="{Binding FormattedSize, Mode=OneWay}">
 									<TextBox.ToolTip>
-										<TextBlock Text="{Binding SelectedResource.Size, Mode=OneWay, StringFormat={}{0:N0} bytes}"/>
+										<TextBlock Text="{Binding FormattedSize, Mode=OneWay}"/>
 									</TextBox.ToolTip>
 								</TextBox>
 							</ScrollViewer>
@@ -300,7 +280,7 @@
 				</Grid>
 			</Grid>
 		</Grid>
-		<Border Background="#B6120B1B" Visibility="{Binding WindowEnabled, Converter={exconv:InverseBooleanVisibilityConverter}}">
+		<Border Background="#B6120B1B" Visibility="{Binding Free, Converter={exconv:InverseBooleanVisibilityConverter}}">
 			<Image Source="{StaticResource SpinnerDrawingImage}">
 				<Image.Style>
 					<Style TargetType="Image">

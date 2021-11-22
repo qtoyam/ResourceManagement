@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Buffers;
 
+using static FastBytes.FastWriteNoEndianness;
+
 namespace RMWriter
 {
 	public class ResourcePacker
@@ -14,6 +16,15 @@ namespace RMWriter
 		private const int DATA_SIZE_L = sizeof(int);
 		//	data[] - (byte[])[count]
 
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="path"></param>
+		/// <param name="resources"></param>
+		/// <returns></returns>
+		/// <exception cref="ArgumentException"></exception>
+		/// <exception cref="ArgumentOutOfRangeException"></exception>
 		public static async Task SaveToSlim(string path, IReadOnlyCollection<FileInfo> resources)
 		{
 			if (resources.Count < 1) throw new ArgumentException("No resources to save.", nameof(resources));
@@ -26,13 +37,13 @@ namespace RMWriter
 				var curr_buff = buff;
 				#region write 'header'
 				WriteInt32(curr_buff.Span, resources.Count); //write 'count'
-				WriteInt32(curr_buff.Span, COUNT_L, resources.SkipLast(1).Select(static f =>
+				WriteInts32(curr_buff.Span, resources.SkipLast(1).Select(static f =>
 				{
 					//check file length
 					var l = f.Length;
 					if (l > int.MaxValue) throw new ArgumentOutOfRangeException($"{f.FullName} length", $"Max file length {int.MaxValue}");
 					return (int)l;
-				})); //write 'data_size[]', skip last 'data_size'
+				}), destOffset: COUNT_L); //write 'data_size[]', skip last 'data_size'
 				curr_buff = curr_buff[header_size..];
 				#endregion //write 'header'
 				bool fileCreated = false;
@@ -50,6 +61,7 @@ namespace RMWriter
 						{
 							await using (var fsR = new FileStream(r.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
 							{
+								if (fsR.Length != r.Length) throw new InvalidDataException($"File '{r.FullName}' changed during write.");
 								#region write 'data[i]'
 								while (true)
 								{
@@ -71,34 +83,12 @@ namespace RMWriter
 						}
 						if (curr_buff.Length > 0) await fs.WriteAsync(buff[..^curr_buff.Length]); //flush if some data
 					}
-
-
 				}
 				catch
 				{
 					if (fileCreated) File.Delete(path); //clean up if failed
 					throw;
 				}
-			}
-		}
-
-		private static void WriteInt32(Span<byte> dest, int value)
-		{
-			dest[0] = (byte)value;
-			dest[1] = (byte)(value >> 8);
-			dest[2] = (byte)(value >> 16);
-			dest[3] = (byte)(value >> 24);
-		}
-
-		private static void WriteInt32(Span<byte> dest, int offset, IEnumerable<int> values)
-		{
-			int c = offset;
-			foreach (var v in values)
-			{
-				dest[c++] = (byte)v;
-				dest[c++] = (byte)(v >> 8);
-				dest[c++] = (byte)(v >> 16);
-				dest[c++] = (byte)(v >> 24);
 			}
 		}
 	}

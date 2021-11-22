@@ -9,4 +9,10 @@
     <SignAssembly>False</SignAssembly>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Reference Include="FastBytes">
+      <HintPath>..\..\dll_sources\FastBytesProject\Core\FastBytes\bin\Release\net6.0\FastBytes.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

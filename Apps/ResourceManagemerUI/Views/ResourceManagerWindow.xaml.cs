@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
+using ResourceManagerUI.Services;
 using ResourceManagerUI.ViewModels;
 
 namespace ResourceManagerUI.Views
@@ -25,6 +26,8 @@ namespace ResourceManagerUI.Views
 		public ResourceManagerWindow()
 		{
 			InitializeComponent();
+			EventMessageService msgServ = new(this);
+			DataContext = new ResourceManagerVM(msgServ);
 		}
 
 		private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -36,10 +39,10 @@ namespace ResourceManagerUI.Views
 			e.Handled = true;
 		}
 
-		private void DataGridColumnHeader_PreviewMouseDoubleClick(object sender, MouseButtonEventArgs e)
+		protected override void OnClosed(EventArgs e)
 		{
-			((ResourceManagerVM)DataContext).ChangeAllIncludeCommand.Execute(null);
-			e.Handled = true;
+			((ResourceManagerVM)DataContext).Dispose();
+			base.OnClosed(e);
 		}
 	}
 }

@@ -1,5 +1,7 @@
 ﻿using System;
 
+using static FastBytes.FastReadNoEndianness;
+
 namespace RMReader
 {
 #nullable disable
@@ -37,11 +39,10 @@ namespace RMReader
 			{
 				throw new FileCorruptedException(path);
 			}
-			static int GetInt32(Span<byte> dest) => dest[0] | (dest[1] << 8) | (dest[2] << 16) | (dest[3] << 24);
-			int count = GetInt32(tbuff.Span);
+			int count = ReadInt32(tbuff.Span);
 			int data_sizes_l = (count - 1) * DATA_SIZE_L;
 			tbuff = new byte[data_sizes_l];
-			if (await _f.ReadAsync(tbuff) != tbuff.Length)
+			if (await _f.ReadAsync(tbuff).ConfigureAwait(false) != tbuff.Length)
 			{
 				throw new FileCorruptedException(path);
 			}
@@ -50,7 +51,7 @@ namespace RMReader
 			int i;
 			for (i = 0; i < _resources.Length - 1; i++)
 			{
-				int size = GetInt32(tbuff.Span);
+				int size = ReadInt32(tbuff.Span);
 				if (size > MaxFileLength) MaxFileLength = size;
 				tbuff = tbuff[DATA_SIZE_L..];
 				_resources[i] = new(size, pos);

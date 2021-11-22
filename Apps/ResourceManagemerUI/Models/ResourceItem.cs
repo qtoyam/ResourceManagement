@@ -1,23 +1,16 @@
 ﻿using System;
 using System.IO;
 
-using RMWriter;
-
 using WPFCoreEx.Bases;
+using ResourceManagerUI.Helpers;
+using System.Text;
 
 namespace ResourceManagerUI.Models
 {
-	public enum ContentType : int
-	{
-		None = 0b_0,
-		Image = 0b_1,
-		NotSupported = 0b_1000_0000_0000_0000,
-		FileNotFound = 0b_1001_0000_0000_0000
-	}
-
 	public class ResourceItem : NotifyPropBase
 	{
-		//public static readonly object EmptyContent = new();
+		private FileInfo? _file = null;
+		public ContentCache ContentCache { get; } = new();
 
 		private string _name = string.Empty;
 		public string Name
@@ -33,61 +26,37 @@ namespace ResourceManagerUI.Models
 			}
 		}
 
-		private string _path = string.Empty;
-		public string Path
+		private int _index = -1;
+		public int Index
 		{
-			get => _path;
+			get => _index;
 			set
 			{
-				if (_path != value)
+				if (_index != value)
 				{
-					_path = value;
-					OnPropertyChanged();
-					SetNewFile(value);
+					_index = value;
+					OnPropertyChanged(nameof(Index));
 				}
 			}
 		}
 
-		private long? _size = null;
-		public long? Size
+		public string Path
 		{
-			get => _size;
-			private set
+			get => _file?.FullName ?? string.Empty;
+			set
 			{
-				if (_size != value)
+				if (value != Path)
 				{
-					_size = value;
-					OnPropertyChanged();
-					UpdateFormattedSize();
+					_file = new(value);
+					UpdateData();
+					OnPropertyChanged(nameof(Path));
 				}
 			}
 		}
+		public long Size => _file?.Length ?? -1;
 
-		private void UpdateFormattedSize()
-		{
-			if (_size == null) return;
-			double s = _size.Value;
-			string unit = "B";
-			if (s > (1 << 30))
-			{
-				s /= 1 << 30;
-				unit = "GB";
-			}
-			else if (s > (1 << 20))
-			{
-				s /= 1 << 20;
-				unit = "MB";
-			}
-			else if (s > (1 << 10))
-			{
-				s /= 1 << 10;
-				unit = "KB";
-			}
-			FormattedSize = $"{Math.Round(s, 1)} {unit}";
-		}
-
-		private string? _formattedSize = null;
-		public string? FormattedSize
+		private string _formattedSize = string.Empty;
+		public string FormattedSize
 		{
 			get => _formattedSize;
 			private set
@@ -95,124 +64,64 @@ namespace ResourceManagerUI.Models
 				if (value != _formattedSize)
 				{
 					_formattedSize = value;
-					OnPropertyChanged();
+					OnPropertyChanged(nameof(FormattedSize));
 				}
 			}
 		}
 
-		private bool _include = false;
-		public bool Include
+		private void UpdateData()
 		{
-			get => _include;
-			set
+			FormattedSize = FileHelper.NormalizeSize(_file!.Exists ? _file.Length : -1);
+			OnPropertyChanged(nameof(Size)); //update cauze might change in size
+
+			if (Name == string.Empty)
 			{
-				if (_include != value)
-				{
-					_include = value;
-					OnPropertyChanged();
-				}
+				Name = _file.Name;
 			}
+
+			ClearCache();
 		}
 
-		private object? _contentPreview;
-		public object? ContentPreview
+		/// <summary>
+		/// Refreshes file state and clears cache.
+		/// </summary>
+		/// <returns></returns>
+		public bool Refresh()
 		{
-			get => _contentPreview;
-			private set
-			{
-				if (_contentPreview != value)
-				{
-					_contentPreview = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-		private ContentType _contentType;
-		public ContentType ContentType
-		{
-			get => _contentType;
-			private set
-			{
-				if (_contentType != value)
-				{
-					_contentType = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		internal void SetContent(object? content, ContentType contentType)
-		{
-			ContentPreview = content;
-			ContentType = contentType;
-		}
-
-		internal void ClearPreviewCache()
-		{
-			ContentPreview = null;
-		}
-
-		internal void ClearContent()
-		{
-			ContentPreview = null;
-			ContentType = ContentType.None;
-		}
-
-
-#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-		public ResourceItem() { }
-
-		public ResourceItem(string path, string name = "")
-		{
-			Name = name;
-			Path = path;
-		}
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
-
-		private FileInfo _file;
-		public FileInfo File => _file;
-		private void SetNewFile(string value)
-		{
-			_file = new(value);
-			RefreshFileInfo();
-		}
-
-		//TODO: check what happens when file is not allowed to read (locked)
-		internal void RefreshFileInfo()
-		{
+			if (_file == null) return false;
 			_file.Refresh();
-			if (_file.Exists)
-			{
-				if (string.IsNullOrEmpty(Name)) Name = _file.Name;
-				Size = _file.Length;
-				if(_contentType == ContentType.FileNotFound)
-				{
-					ContentType = ContentType.None;
-				}
-			}
-			else
-			{
-				Size = null;
-				SetContent(null, ContentType.FileNotFound);
-			}
+			UpdateData();
+			return _file.Exists;
 		}
+
+		public bool TryLoadCache() => ContentCache.TryLoad(Path);
+
+		public void ClearCache() => ContentCache.Clear();
+
+		public bool IsContentNeedBeLoaded() => ContentCache.ContentType == ContentType.None;
 
 		public ResourceItem DeepCopy()
 		{
-			return new ResourceItem()
+			var res = new ResourceItem()
 			{
-				_file = new(this._path),
-				_include = this._include,
-				_name = this._name,
-				_path = this._path,
-				_size = this._size,
-				_contentPreview = this._contentPreview,
-				_contentType = this._contentType,
-				_formattedSize = this._formattedSize
+				Name = this.Name,
+				Index = this.Index
 			};
+			res.Path = this.Path;
+			return res;
 		}
 
-		public override string? ToString() =>
-			$"Name: \"{this.Name}\", Size: {this.Size ?? -1} bytes";
+		public static ResourceItem SmartCompareExchange(ResourceItem originalResource, ResourceItem newResource)
+		{
+			if (newResource.Path == originalResource.Path)
+			{
+				originalResource.Name = newResource.Name;
+				originalResource.Index = newResource.Index;
+				newResource.ClearCache();
+				return originalResource;
+			}
+			originalResource.ClearCache();
+			return newResource;
+		}
 	}
 }
