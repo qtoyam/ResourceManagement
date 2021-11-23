@@ -45,7 +45,7 @@ namespace ResourceManagerUI.ViewModels
 		public bool TryLoad(string? path)
 		{
 			Clear();
-			if (path == null || !File.Exists(path))
+			if (string.IsNullOrEmpty(path) || !File.Exists(path))
 			{
 				ContentType = ContentType.FileNotFound;
 				return false;
@@ -84,10 +84,6 @@ namespace ResourceManagerUI.ViewModels
 				if (Content is IDisposable disposable) disposable.Dispose();
 				Content = null;
 			}
-		}
-		public void TestFile(string path)
-		{
-
 		}
 
 		private static bool TryLoadBitmapImage(FileStream file, out BitmapImage? result)
