@@ -2,14 +2,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 
 namespace ResourceManagerUI.Models
 {
 	public interface IResourceItem
 	{
 		string? Name { get; set; }
+
 		string? Path { get; set; }
-		int Index { get; set; }
+
+		int? Index { get; set; }
 	}
 }
