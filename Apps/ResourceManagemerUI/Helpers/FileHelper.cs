@@ -33,7 +33,7 @@ namespace ResourceManagerUI.Helpers
 			}
 			else if (s < 0)
 			{
-				return "File not found";
+				throw new ArgumentOutOfRangeException(nameof(size), size, "Size must be greater or equal to zero.");
 			}
 			return $"{Math.Round(s, 1)} {unit}";
 		}
