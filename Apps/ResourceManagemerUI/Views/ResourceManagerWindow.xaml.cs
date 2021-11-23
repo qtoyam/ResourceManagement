@@ -26,8 +26,13 @@ namespace ResourceManagerUI.Views
 		public ResourceManagerWindow()
 		{
 			InitializeComponent();
-			EventMessageService msgServ = new(this);
+			EventMessageService msgServ = EventMessageService.CreateForDebug(this);
 			DataContext = new ResourceManagerVM(msgServ);
+		}
+
+		private void MsgServ_MessageReceived(string obj)
+		{
+			MessageBox.Show(obj);
 		}
 
 		private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)

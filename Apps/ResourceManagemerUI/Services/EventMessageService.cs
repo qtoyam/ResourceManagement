@@ -18,18 +18,25 @@ namespace ResourceManagerUI.Services
 			_owner = owner;
 		}
 
-		public void SendMessage(string message)
+		public static EventMessageService CreateForDebug(Window owner)
 		{
-			MessageReceived?.Invoke(message);
+			var r = new EventMessageService(owner);
+			r.MessageReceived = r.SilentMessageReceived = r.WarningReceived = r.ErrorReceived = (msg) => MessageBox.Show(r._owner, msg);
+			r.ExceptionReceived = (ex) => MessageBox.Show(r._owner, ex.Message);
+			return r;
 		}
-		public void SendSilentMessage(string message)
-		{
-			SilentMessageReceived?.Invoke(message);
-		}
+
+		public void SendMessage(string message) => MessageReceived?.Invoke(message);
+		public void SendSilentMessage(string message) => SilentMessageReceived?.Invoke(message);
+		public void SendWarning(string message) => WarningReceived?.Invoke(message);
+		public void SendError(string message) => ErrorReceived?.Invoke(message);
+		public void SendException(Exception ex) => ExceptionReceived?.Invoke(ex);
 
 		public event Action<string>? SilentMessageReceived;
-
 		public event Action<string>? MessageReceived;
+		public event Action<string>? WarningReceived;
+		public event Action<string>? ErrorReceived;
+		public event Action<Exception>? ExceptionReceived;
 
 		public bool TryGetFile(out string filePath, string? fileType = null, string[]? extensions = null)
 		{
@@ -43,6 +50,7 @@ namespace ResourceManagerUI.Services
 			{
 				StringBuilder sb = new StringBuilder();
 				sb.Append(fileType);
+				sb.Append('|');
 				foreach (var extension in extensions)
 				{
 					sb.Append("*.");
@@ -70,7 +78,7 @@ namespace ResourceManagerUI.Services
 			};
 			StringBuilder sb = new StringBuilder();
 			sb.Append(fileType);
-			sb.Append("*.");
+			sb.Append("|*.");
 			sb.Append(extension);
 
 			openFileDialog.Filter = sb.ToString();
@@ -106,6 +114,5 @@ namespace ResourceManagerUI.Services
 			saveFilePath = string.Empty;
 			return false;
 		}
-
 	}
 }

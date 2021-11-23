@@ -17,5 +17,11 @@ namespace ResourceManagerUI.Services
 		public void SendSilentMessage(string message);
 
 		public void SendMessage(string message);
+
+		public void SendWarning(string message);
+
+		public void SendError(string message);
+
+		public void SendException(Exception ex);
 	}
 }
