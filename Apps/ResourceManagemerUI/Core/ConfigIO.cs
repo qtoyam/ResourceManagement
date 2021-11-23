@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Resources;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 
 using ResourceManagerUI.Models;
 
@@ -12,49 +14,73 @@ namespace ResourceManagerUI.Core
 {
 	internal static class ConfigIO
 	{
-		private const char Cfg_Separator = ',';
-		private readonly static string[] _configExtension = new[] { "rmcfg" };
+		internal const string ConfigExtension = "rmcfg";
+		private const string XML_ResourcesArray_name = "Resources";
+		private const string XML_Resource_name = "Resource";
 
 		internal static async Task WriteAsync(string path, IEnumerable<IResourceItem> resources)
 		{
-			await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write,
-				FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
-			await using (var sw = new StreamWriter(fs, Encoding.UTF8, 4096, true))
+			bool fileCreated = false;
+			try
 			{
-				bool f = true;
-				foreach (var r in resources)
+				await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write,
+					FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
 				{
-					if (!f) sw.Write('\n');
-					else f = false;
-					sw.Write(r.Index);
-					sw.Write(Cfg_Separator);
-					if (r.Name != null)
+					fileCreated = true;
+					await using (var xw = XmlWriter.Create(fs, new() { Async = true, Indent = true }))
 					{
-						sw.Write('"');
-						await sw.WriteAsync(r.Name);
-						sw.Write('"');
-					}
-					sw.Write(Cfg_Separator);
-					if (r.Path != null)
-					{
-						await sw.WriteAsync(r.Path);
+						await xw.WriteStartDocumentAsync();
+						await xw.WriteStartElementAsync(null, XML_ResourcesArray_name, null);
+						foreach (var r in resources)
+						{
+							await xw.WriteStartElementAsync(null, XML_Resource_name, null);
+							if (r.Index.HasValue)
+							{
+								await xw.WriteAttributeStringAsync(null, nameof(IResourceItem.Index), null, r.Index.Value.ToString());
+							}
+							if (!string.IsNullOrEmpty(r.Name))
+							{
+								await xw.WriteAttributeStringAsync(null, nameof(IResourceItem.Name), null, r.Name);
+							}
+							await xw.WriteStringAsync(r.Path);
+							await xw.WriteFullEndElementAsync();
+						}
+						await xw.WriteFullEndElementAsync();
+						await xw.WriteEndDocumentAsync();
 					}
 				}
 			}
+			catch
+			{
+				if (fileCreated) File.Delete(path);
+				throw;
+			}
 		}
 
-		internal static async Task ReadAsync<T>(string path, ICollection<T> dest) where T : IResourceItem
+		internal static async Task ReadAsync<T>(string path, ICollection<T> dest) where T : IResourceItem, new()
 		{
-			await using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write,
+			await using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read,
 				FileShare.Read, 0, FileOptions.Asynchronous | FileOptions.SequentialScan))
-			using (var sr = new StreamReader(fs, Encoding.UTF8, false, 4096, true))
+			using (var xr = XmlReader.Create(fs, new() { Async = true, CloseInput = false }))
 			{
-				string? line;
-				while((line = await sr.ReadLineAsync()) != null)
+				xr.ReadStartElement(XML_ResourcesArray_name);
+				T r;
+				while (xr.IsStartElement(XML_Resource_name))
 				{
-					var sb = new StringBuilder(line, line.Length);
-					
+					r = new();
+					if (xr.MoveToAttribute("Index"))
+{
+						r.Index = xr.ReadContentAsInt();
+					}
+					if (xr.MoveToAttribute("Name"))
+					{
+						r.Name = await xr.ReadContentAsStringAsync();
+					}
+					xr.MoveToElement();
+					r.Path = await xr.ReadElementContentAsStringAsync();
+					dest.Add(r);
 				}
+				xr.ReadEndElement();
 			}
 		}
 	}
