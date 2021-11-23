@@ -12,6 +12,8 @@ namespace ResourceManagerUI.Services
 
 		public bool TryGetFile(out string filePath, string? fileType = null, string[]? extensions = null);
 
+		public bool TryGetFile(out string filePath, string fileType, string extension);
+
 		public void SendSilentMessage(string message);
 
 		public void SendMessage(string message);

@@ -69,6 +69,11 @@
 						  VerticalAlignment="Center" HorizontalAlignment="Center"
 						  IsChecked="{Binding AutoPreview, Mode=OneWayToSource}"
 						  Grid.Row="1" Grid.Column="1"/>
+					<Button Content="Build" MinWidth="75"
+						VerticalAlignment="Center" HorizontalAlignment="Center"
+						Command="{Binding BuildAsyncCommand}"
+						Grid.Row="1" Grid.Column="2"/>
+
 				</Grid>
 
 				<StackPanel x:Name="Bottom_controls" Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
@@ -78,7 +83,7 @@
 						Command="{Binding SaveCommand}"/>
 					<Button Content="Save as" MinWidth="75" Margin="0,0,20,0"
 						Command="{Binding SaveAsCommand}"/>
-					<Button Content="Build" MinWidth="75"
+					<Button Content="Load" MinWidth="75"
 						Command="{Binding BuildAsyncCommand}"/>
 				</StackPanel>
 				<Border x:Name="ResourcesBorder" Grid.Row="1" Background="{DynamicResource LeftPanelBottomColor}">

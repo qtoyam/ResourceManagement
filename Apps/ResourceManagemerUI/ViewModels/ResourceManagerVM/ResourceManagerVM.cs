@@ -3,11 +3,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media.Imaging;
 
-using Microsoft.Win32;
 using MvvmGen;
 
 using ResourceManagerUI.Models;
@@ -19,7 +15,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using ResourceManagerUI.Services;
 using WPFCoreEx.Services;
-using System.Text.Json;
+using System.Text;
 
 namespace ResourceManagerUI.ViewModels
 {
@@ -35,11 +31,6 @@ namespace ResourceManagerUI.ViewModels
 	[ViewModel]
 	public sealed partial class ResourceManagerVM : IDisposable
 	{
-		public ResourceManagerVM()
-		{
-
-		}
-
 		partial void OnInitialize()
 		{
 #if DEBUG
@@ -59,7 +50,7 @@ namespace ResourceManagerUI.ViewModels
 
 		[Property] private bool _free = true;
 
-		public ObservableCollection<ResourceItem> Resources { get; } = new();
+		public ObservableCollection<ResourceItemVM> Resources { get; private set; } = new();
 
 		//private readonly WorkQueue _workQueue = new();
 
@@ -80,7 +71,7 @@ namespace ResourceManagerUI.ViewModels
 				}
 			}
 		}
-		[Property] private ResourceItem _selectedResource = null!;
+		[Property] private ResourceItemVM _selectedResource = null!;
 
 		#region Current state
 		private CurrentState _currentState = CurrentState.None;
@@ -129,7 +120,7 @@ namespace ResourceManagerUI.ViewModels
 		private void SetDefaultState() => CurrentState = CurrentState.None;
 
 		#region add/edit resource
-		[Property] private ResourceItem _editableResource = null!;
+		[Property] private ResourceItemVM _editableResource = null!;
 
 		[Command]
 		private void SelectResourcePath()
@@ -163,7 +154,7 @@ namespace ResourceManagerUI.ViewModels
 			}
 			else if (CurrentState == CurrentState.EditResource)
 			{
-				Resources[_selectedResourceIndex] = ResourceItem.SmartCompareExchange(Resources[_selectedResourceIndex], _editableResource);
+				Resources[_selectedResourceIndex] = ResourceItemVM.SmartCompareExchange(Resources[_selectedResourceIndex], _editableResource);
 			}
 			else throw new InvalidOperationException(nameof(EndEditResource));
 			CurrentState = CurrentState.None;
@@ -182,27 +173,16 @@ namespace ResourceManagerUI.ViewModels
 		private bool CanRemoveResource() => _selectedResourceIndex != -1;
 		#endregion //remove resource
 
-		#region Save, save as
-		[Property] private string _currentRMCFG = string.Empty;
+		#region save, save as, load
+		[Property] private FileInfo? _currentConfig = null;
 
 		[Command(CanExecuteMethod = nameof(NotEmpty))]
-		private void Save()
-		{
-			throw new NotImplementedException();
-		}
-
-		//TODO: save implement, save type in SFD (add)
-		[Command(CanExecuteMethod = nameof(NotEmpty))]
-		private void SaveAs()
+		private async Task SaveAsync()
 		{
 			Free = false;
 			try
 			{
-				if(MessageService.TryGetSaveFilePath(out var saveFile, extension: "rmcfg", action: "Save config as"))
-				{
-					CurrentRMCFG = saveFile;
-					//SaveCommand.
-				}
+				await SaveCoreAsync(false);
 			}
 			finally
 			{
@@ -210,18 +190,87 @@ namespace ResourceManagerUI.ViewModels
 			}
 		}
 
-		private void SaveConfigTo(string path)
+		[Command(CanExecuteMethod = nameof(NotEmpty))]
+		private async Task SaveAsAsync()
 		{
-			
+			Free = false;
+			try
+			{
+				await SaveCoreAsync(true);
+			}
+			finally
+			{
+				Free = true;
+			}
+		}
+
+		private async Task SaveCoreAsync(bool forceNew)
+		{
+			if (CurrentConfig == null || forceNew)
+			{
+				if (MessageService.TryGetSaveFilePath(out var saveFile, extension: _configExtension[0], action: "Save config as"))
+				{
+					CurrentConfig = new(saveFile);
+				}
+				else
+				{
+					return;
+				}
+			}
+			//TODO: idk check conf await false
+			await using (var sw = new StreamWriter(CurrentConfig.FullName, Encoding.UTF8, _openWriteAsync))
+			{
+				foreach (var r in Resources)
+				{
+					sw.Write(r.Index);
+					sw.Write(Cfg_Separator);
+					if (r.Name != null)
+					{
+						sw.Write('"');
+						await sw.WriteAsync(r.Name);
+						sw.Write('"');
+					}
+					sw.Write(Cfg_Separator);
+					if (r.Path != null)
+					{
+						await sw.WriteAsync(r.Path);
+					}
+				}
+			}
+		}
+		[Command]
+		private async Task LoadConfig()
+		{
+			Free = false;
+			try
+			{
+				if (MessageService.TryGetFile(out var cfgPath, fileType: "RM cfg", _configExtension))
+				{
+					ClearResourcesCache();
+					Resources.Clear();
+					await using (var sw = new StreamWriter(cfgPath, Encoding.UTF8, _openWriteAsync))
+					{
+						//sw.Write();
+					}
+				}
+			}
+			finally
+			{
+				Free = true;
+			}
 		}
 		#endregion //Save, save as
+		#region Config IO core
+
+		#endregion //Config IO core
+
 		private bool NotEmpty() => Resources.Count > 0;
 		private void Resources_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
 		{
 			BuildAsyncCommand.RaiseCanExecuteChanged();
 			RefreshResourcesCommand.RaiseCanExecuteChanged();
-			SaveCommand.RaiseCanExecuteChanged();
-			SaveAsCommand.RaiseCanExecuteChanged();
+			SaveAsyncCommand.RaiseCanExecuteChanged();
+			SaveAsAsyncCommand.RaiseCanExecuteChanged();
 		}
 		#region build, refresh
 		[Command(CanExecuteMethod = nameof(CanBuildAsync))]
@@ -233,6 +282,11 @@ namespace ResourceManagerUI.ViewModels
 				var resources_copy = new FileInfo[Resources.Max(x => x.Index)];
 				foreach (var r in Resources.Where(x => x.Index != -1))
 				{
+					if(r.Path == null)
+					{
+						MessageService.SendMessage($"No path specified, resource [{r.Index}]");
+						return;
+					}
 					var f = new FileInfo(r.Path);
 					if (!f.Exists)
 					{
@@ -267,14 +321,13 @@ namespace ResourceManagerUI.ViewModels
 		{
 			Free = false;
 			CurrentState = CurrentState.None;
-			_resourcesCache.Clear();
+			ClearResourcesCache();
 			foreach (var r in Resources)
 			{
 				r.Refresh();
 			}
 			Free = true;
 		}
-
 		#endregion //build, refresh
 
 		#region Preview resource
@@ -288,7 +341,7 @@ namespace ResourceManagerUI.ViewModels
 				{
 					_autoPreview = value;
 					OnPropertyChanged();
-					if (_autoPreview && _selectedResourceIndex != -1)
+					if (_autoPreview && _selectedResourceIndex != -1) //auto preview current resource(if selected)
 					{
 						TryPreviewResource();
 					}
@@ -296,7 +349,7 @@ namespace ResourceManagerUI.ViewModels
 			}
 		}
 
-		private readonly LinkedList<ResourceItem> _resourcesCache = new();
+		private readonly LinkedList<ResourceItemVM> _resourcesCache = new();
 		private const int MAX_CACHE = 10; //TODO: change cache limit to bytes
 
 		[Command]
@@ -309,22 +362,39 @@ namespace ResourceManagerUI.ViewModels
 			//{
 			if (r.TryLoadCache())
 			{
-				_resourcesCache.AddLast(r);
-				if (_resourcesCache.Count > MAX_CACHE)
-				{
-					_resourcesCache.First!.Value.ClearCache();
-					_resourcesCache.RemoveFirst();
-				}
+				CacheResource(r);
 			}
 			//});
 			Free = true;
+		}
+		#endregion //Preview resource
+
+		private void ClearResourcesCache()
+		{
+			var rc = _resourcesCache.First;
+			while (rc != null)
+			{
+				rc.Value.ClearCache();
+				_resourcesCache.RemoveFirst();
+				rc = rc.Next;
+			}
+		}
+
+		private void CacheResource(ResourceItemVM resourceItem)
+		{
+			_resourcesCache.AddLast(resourceItem);
+			if (_resourcesCache.Count > MAX_CACHE)
+			{
+				_resourcesCache.First!.Value.ClearCache();
+				_resourcesCache.RemoveFirst();
+			}
 		}
 
 		public void Dispose()
 		{
 			Resources.CollectionChanged -= Resources_CollectionChanged;
+			ClearResourcesCache();
 			//_workQueue.Dispose();
 		}
-		#endregion //Preview resource
 	}
 }

@@ -4,7 +4,7 @@ using System.Windows.Media.Imaging;
 
 using WPFCoreEx.Bases;
 
-namespace ResourceManagerUI.Models
+namespace ResourceManagerUI.ViewModels
 {
 	public enum ContentType
 	{
@@ -13,7 +13,7 @@ namespace ResourceManagerUI.Models
 		NotSupported,
 		FileNotFound
 	}
-	public class ContentCache : NotifyPropBase
+	public class ContentCacheVM : NotifyPropBase
 	{
 		private ContentType _contentType = ContentType.None;
 		public ContentType ContentType
@@ -42,10 +42,10 @@ namespace ResourceManagerUI.Models
 			}
 		}
 
-		public bool TryLoad(string path)
+		public bool TryLoad(string? path)
 		{
 			Clear();
-			if (!File.Exists(path))
+			if (path == null || !File.Exists(path))
 			{
 				ContentType = ContentType.FileNotFound;
 				return false;

@@ -4,16 +4,19 @@ using System.IO;
 using WPFCoreEx.Bases;
 using ResourceManagerUI.Helpers;
 using System.Text;
+using System.Text.Json.Serialization;
+using ResourceManagerUI.Models;
 
-namespace ResourceManagerUI.Models
+namespace ResourceManagerUI.ViewModels
 {
-	public class ResourceItem : NotifyPropBase
+	public class ResourceItemVM : NotifyPropBase, IResourceItem
 	{
 		private FileInfo? _file = null;
-		public ContentCache ContentCache { get; } = new();
+		[JsonIgnore]
+		public ContentCacheVM ContentCache { get; } = new();
 
-		private string _name = string.Empty;
-		public string Name
+		private string? _name = null;
+		public string? Name
 		{
 			get => _name;
 			set
@@ -40,14 +43,14 @@ namespace ResourceManagerUI.Models
 			}
 		}
 
-		public string Path
+		public string? Path
 		{
-			get => _file?.FullName ?? string.Empty;
+			get => _file?.FullName;
 			set
 			{
 				if (value != Path)
 				{
-					_file = new(value);
+					_file = value == null ? null : new(value);
 					UpdateData();
 					OnPropertyChanged(nameof(Path));
 				}
@@ -100,9 +103,9 @@ namespace ResourceManagerUI.Models
 
 		public bool IsContentNeedBeLoaded() => ContentCache.ContentType == ContentType.None;
 
-		public ResourceItem DeepCopy()
+		public ResourceItemVM DeepCopy()
 		{
-			var res = new ResourceItem()
+			var res = new ResourceItemVM()
 			{
 				Name = this.Name,
 				Index = this.Index
@@ -111,7 +114,7 @@ namespace ResourceManagerUI.Models
 			return res;
 		}
 
-		public static ResourceItem SmartCompareExchange(ResourceItem originalResource, ResourceItem newResource)
+		public static ResourceItemVM SmartCompareExchange(ResourceItemVM originalResource, ResourceItemVM newResource)
 		{
 			if (newResource.Path == originalResource.Path)
 			{

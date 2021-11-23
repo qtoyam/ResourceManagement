@@ -60,6 +60,29 @@ namespace ResourceManagerUI.Services
 			return false;
 		}
 
+		public bool TryGetFile(out string filePath, string fileType, string extension)
+		{
+			var openFileDialog = new OpenFileDialog()
+			{
+				Multiselect = false,
+				CheckFileExists = true,
+				CheckPathExists = true
+			};
+			StringBuilder sb = new StringBuilder();
+			sb.Append(fileType);
+			sb.Append("*.");
+			sb.Append(extension);
+
+			openFileDialog.Filter = sb.ToString();
+			if (openFileDialog.ShowDialog(_owner) == true)
+			{
+				filePath = openFileDialog.FileName;
+				return true;
+			}
+			filePath = string.Empty;
+			return false;
+		}
+
 		public bool TryGetSaveFilePath(out string saveFilePath, string extension = "", string action = "")
 		{
 			var saveFileDialog = new SaveFileDialog()
@@ -83,7 +106,6 @@ namespace ResourceManagerUI.Services
 			saveFilePath = string.Empty;
 			return false;
 		}
-
 
 	}
 }
