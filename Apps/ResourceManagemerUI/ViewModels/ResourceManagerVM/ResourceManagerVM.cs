@@ -16,6 +16,7 @@ using System.Threading;
 using ResourceManagerUI.Services;
 using WPFCoreEx.Services;
 using System.Text;
+using ResourceManagerUI.Core;
 
 namespace ResourceManagerUI.ViewModels
 {
@@ -64,6 +65,7 @@ namespace ResourceManagerUI.ViewModels
 				{
 					_selectedResourceIndex = value;
 					OnPropertyChanged(nameof(SelectedResourceIndex));
+					RemoveResourceCommand.RaiseCanExecuteChanged();
 					if (_selectedResourceIndex != -1)
 					{
 						CurrentState = CurrentState.SelectResource;
@@ -119,151 +121,6 @@ namespace ResourceManagerUI.ViewModels
 		[Command]
 		private void SetDefaultState() => CurrentState = CurrentState.None;
 
-		#region add/edit resource
-		[Property] private ResourceItemVM _editableResource = null!;
-
-		[Command]
-		private void SelectResourcePath()
-		{
-			if (MessageService.TryGetFile(out var openpath))
-			{
-				EditableResource.Path = openpath;
-			}
-		}
-
-		#region New resource
-		[Command(CanExecuteMethod = nameof(CanAddResource))]
-		private void BeginAddResource() => CurrentState = CurrentState.NewResource;
-
-		private bool CanAddResource() => CurrentState == CurrentState.None || CurrentState == CurrentState.SelectResource;
-		#endregion //New resource
-
-		#region Edit current resource
-		[Command(CanExecuteMethod = nameof(CanEditResource))]
-		private void BeginEditResource() => CurrentState = CurrentState.EditResource;
-
-		private bool CanEditResource() => CurrentState == CurrentState.SelectResource;
-		#endregion //Edit current resource
-
-		[Command]
-		private void EndEditResource()
-		{
-			if (CurrentState == CurrentState.NewResource)
-			{
-				Resources.Add(EditableResource);
-			}
-			else if (CurrentState == CurrentState.EditResource)
-			{
-				Resources[_selectedResourceIndex] = ResourceItemVM.SmartCompareExchange(Resources[_selectedResourceIndex], _editableResource);
-			}
-			else throw new InvalidOperationException(nameof(EndEditResource));
-			CurrentState = CurrentState.None;
-		}
-		#endregion //add/edit resource
-
-		#region remove resource
-		[Command(CanExecuteMethod = nameof(CanRemoveResource))]
-		private void RemoveResource()
-		{
-			Resources[_selectedResourceIndex].ClearCache();
-			Resources.RemoveAt(_selectedResourceIndex);
-			CurrentState = CurrentState.None;
-		}
-		[CommandInvalidate(nameof(SelectedResourceIndex))]
-		private bool CanRemoveResource() => _selectedResourceIndex != -1;
-		#endregion //remove resource
-
-		#region save, save as, load
-		[Property] private FileInfo? _currentConfig = null;
-
-		[Command(CanExecuteMethod = nameof(NotEmpty))]
-		private async Task SaveAsync()
-		{
-			Free = false;
-			try
-			{
-				await SaveCoreAsync(false);
-			}
-			finally
-			{
-				Free = true;
-			}
-		}
-
-		[Command(CanExecuteMethod = nameof(NotEmpty))]
-		private async Task SaveAsAsync()
-		{
-			Free = false;
-			try
-			{
-				await SaveCoreAsync(true);
-			}
-			finally
-			{
-				Free = true;
-			}
-		}
-
-		private async Task SaveCoreAsync(bool forceNew)
-		{
-			if (CurrentConfig == null || forceNew)
-			{
-				if (MessageService.TryGetSaveFilePath(out var saveFile, extension: _configExtension[0], action: "Save config as"))
-				{
-					CurrentConfig = new(saveFile);
-				}
-				else
-				{
-					return;
-				}
-			}
-			//TODO: idk check conf await false
-			await using (var sw = new StreamWriter(CurrentConfig.FullName, Encoding.UTF8, _openWriteAsync))
-			{
-				foreach (var r in Resources)
-				{
-					sw.Write(r.Index);
-					sw.Write(Cfg_Separator);
-					if (r.Name != null)
-					{
-						sw.Write('"');
-						await sw.WriteAsync(r.Name);
-						sw.Write('"');
-					}
-					sw.Write(Cfg_Separator);
-					if (r.Path != null)
-					{
-						await sw.WriteAsync(r.Path);
-					}
-				}
-			}
-		}
-		[Command]
-		private async Task LoadConfig()
-		{
-			Free = false;
-			try
-			{
-				if (MessageService.TryGetFile(out var cfgPath, fileType: "RM cfg", _configExtension))
-				{
-					ClearResourcesCache();
-					Resources.Clear();
-					await using (var sw = new StreamWriter(cfgPath, Encoding.UTF8, _openWriteAsync))
-					{
-						//sw.Write();
-					}
-				}
-			}
-			finally
-			{
-				Free = true;
-			}
-		}
-		#endregion //Save, save as
-		#region Config IO core
-
-		#endregion //Config IO core
-
 		private bool NotEmpty() => Resources.Count > 0;
 		private void Resources_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
 		{
@@ -279,21 +136,34 @@ namespace ResourceManagerUI.ViewModels
 			Free = false;
 			try
 			{
-				var resources_copy = new FileInfo[Resources.Max(x => x.Index)];
-				foreach (var r in Resources.Where(x => x.Index != -1))
+				var resources_copy = new List<FileInfo>(Resources.Count);
+				foreach (var r in Resources.Where(x => x.Index.HasValue))
 				{
-					if(r.Path == null)
+					if (string.IsNullOrEmpty(r.Path))
 					{
 						MessageService.SendMessage($"No path specified, resource [{r.Index}]");
 						return;
 					}
-					var f = new FileInfo(r.Path);
-					if (!f.Exists)
+					try
 					{
-						MessageService.SendMessage($"File doesnt exist, resource[{r.Index}]");
+						var f = new FileInfo(r.Path);
+						if (!f.Exists)
+						{
+							MessageService.SendMessage($"File doesnt exist, resource[{r.Index}]");
+							return;
+						}
+						resources_copy[r.Index!.Value] = f;
+					}
+					catch (Exception ex)
+					{
+						MessageService.SendMessage(ex.Message);
 						return;
 					}
-					resources_copy[r.Index] = f;
+				}
+				if(resources_copy.Count == 0)
+				{
+					MessageService.SendMessage("No resources to save!");
+					return;
 				}
 				if (MessageService.TryGetSaveFilePath(out var saveFilePath, extension: "qrm", action: "Build resource"))
 				{

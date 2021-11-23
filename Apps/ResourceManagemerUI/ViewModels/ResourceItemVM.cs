@@ -29,8 +29,8 @@ namespace ResourceManagerUI.ViewModels
 			}
 		}
 
-		private int _index = -1;
-		public int Index
+		private int? _index = null;
+		public int? Index
 		{
 			get => _index;
 			set
@@ -50,38 +50,24 @@ namespace ResourceManagerUI.ViewModels
 			{
 				if (value != Path)
 				{
-					_file = value == null ? null : new(value);
+					_file = string.IsNullOrEmpty(value) ? null : new(value);
 					UpdateData();
 					OnPropertyChanged(nameof(Path));
 				}
 			}
 		}
-		public long Size => _file?.Length ?? -1;
+		public long? Size => _file?.Exists == true ? _file.Length : null;
 
-		private string _formattedSize = string.Empty;
-		public string FormattedSize
-		{
-			get => _formattedSize;
-			private set
-			{
-				if (value != _formattedSize)
-				{
-					_formattedSize = value;
-					OnPropertyChanged(nameof(FormattedSize));
-				}
-			}
-		}
+		public string? FormattedSize => Size.HasValue ? FileHelper.NormalizeSize(Size.Value) : null;
 
 		private void UpdateData()
 		{
-			FormattedSize = FileHelper.NormalizeSize(_file!.Exists ? _file.Length : -1);
-			OnPropertyChanged(nameof(Size)); //update cauze might change in size
-
-			if (Name == string.Empty)
+			if (_file != null && Name == null)
 			{
 				Name = _file.Name;
 			}
-
+			OnPropertyChanged(nameof(Size)); //update cauze might change in size
+			OnPropertyChanged(nameof(FormattedSize));
 			ClearCache();
 		}
 
@@ -114,10 +100,15 @@ namespace ResourceManagerUI.ViewModels
 			return res;
 		}
 
-		public static ResourceItemVM SmartCompareExchange(ResourceItemVM originalResource, ResourceItemVM newResource)
+		public static ResourceItemVM SmartCompareUpdate(ResourceItemVM originalResource, ResourceItemVM newResource, out bool updated)
 		{
+			updated = true;
 			if (newResource.Path == originalResource.Path)
 			{
+				if(originalResource.Name == newResource.Name && originalResource.Index == newResource.Index)
+				{
+					updated = false;
+				}
 				originalResource.Name = newResource.Name;
 				originalResource.Index = newResource.Index;
 				newResource.ClearCache();
