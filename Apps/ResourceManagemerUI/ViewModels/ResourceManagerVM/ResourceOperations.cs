@@ -8,20 +8,6 @@ namespace ResourceManagerUI.ViewModels
 	{
 		[Property] private ResourceItemVM? _editableResource = null;
 
-		private bool _unsaved = false;
-		public bool Unsaved
-		{
-			get => _unsaved;
-			set
-			{
-				if (_unsaved != value)
-				{
-					_unsaved = value;
-					OnPropertyChanged(nameof(Unsaved));
-				}
-			}
-		}
-
 		[Command]
 		private void SelectResourcePath()
 		{

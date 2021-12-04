@@ -27,6 +27,13 @@
     <Reference Include="WPFCoreEx">
       <HintPath>..\..\..\dll_sources\WPFCoreEx\WPFCoreEx\bin\Release\net6.0-windows7.0\WPFCoreEx.dll</HintPath>
     </Reference>
+    <Reference Include="WPFCoreEx.Abstractions">
+      <HintPath>..\..\..\dll_sources\WPFCoreEx\WPFCoreEx\bin\Release\net6.0-windows7.0\WPFCoreEx.Abstractions.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\" />
   </ItemGroup>
 
 </Project>

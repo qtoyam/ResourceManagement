@@ -13,8 +13,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 
-using ResourceManagerUI.Services;
 using ResourceManagerUI.ViewModels;
+
+using WPFCoreEx.Services;
 
 namespace ResourceManagerUI.Views
 {
@@ -23,16 +24,14 @@ namespace ResourceManagerUI.Views
 	/// </summary>
 	public partial class ResourceManagerWindow : Window
 	{
+		private readonly EventMessageService _ems;
+
 		public ResourceManagerWindow()
 		{
 			InitializeComponent();
-			EventMessageService msgServ = EventMessageService.CreateForDebug(this);
-			DataContext = new ResourceManagerVM(msgServ);
-		}
-
-		private void MsgServ_MessageReceived(string obj)
-		{
-			MessageBox.Show(obj);
+			_ems = new();
+			_ems.RegisterAllDefault(this);
+			DataContext = new ResourceManagerVM(_ems);
 		}
 
 		private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -47,6 +46,7 @@ namespace ResourceManagerUI.Views
 		protected override void OnClosed(EventArgs e)
 		{
 			((ResourceManagerVM)DataContext).Dispose();
+			_ems.UnregisterAll();
 			base.OnClosed(e);
 		}
 	}

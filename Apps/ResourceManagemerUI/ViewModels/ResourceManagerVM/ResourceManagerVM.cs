@@ -13,10 +13,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using System.Threading;
-using ResourceManagerUI.Services;
 using WPFCoreEx.Services;
 using System.Text;
 using ResourceManagerUI.Core;
+using WPFCoreEx.Abstractions.Services;
 
 namespace ResourceManagerUI.ViewModels
 {
@@ -32,6 +32,22 @@ namespace ResourceManagerUI.ViewModels
 	[ViewModel]
 	public sealed partial class ResourceManagerVM : IDisposable
 	{
+		private bool _unsaved = false;
+		public bool Unsaved
+		{
+			get => _unsaved;
+			set
+			{
+				if (_unsaved != value)
+				{
+					_unsaved = value;
+					OnPropertyChanged(nameof(Unsaved));
+				}
+			}
+		}
+
+		//TODO: title
+
 		partial void OnInitialize()
 		{
 #if DEBUG
