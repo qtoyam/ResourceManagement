@@ -45,7 +45,7 @@ namespace ResourceManagerUI.Views
 
 		protected override void OnClosed(EventArgs e)
 		{
-			((ResourceManagerVM)DataContext).Dispose();
+			((ResourceManagerVM)DataContext)?.Dispose();
 			_ems.UnregisterAll();
 			base.OnClosed(e);
 		}
