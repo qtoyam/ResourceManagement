@@ -13,7 +13,7 @@
 		Background="{DynamicResource LeftPanelTopColor}"
 		Height="400" Width="600"
 		MinHeight="400" MinWidth="600"
-		d:DataContext="{d:DesignInstance Type=vms:ResourceManagerVM, IsDesignTimeCreatable=False}"
+		d:DataContext="{d:DesignInstance Type=vms:ResourceManagerVM, IsDesignTimeCreatable=True}"
 		IsHitTestVisible="{Binding Free}">
 	<Window.Resources>
 		<ResourceDictionary>
@@ -72,7 +72,6 @@
 						VerticalAlignment="Center" HorizontalAlignment="Center"
 						Command="{Binding BuildAsyncCommand}"
 						Grid.Row="1" Grid.Column="2"/>
-
 				</Grid>
 
 				<StackPanel x:Name="Bottom_controls" Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"
@@ -135,7 +134,7 @@
 							</Style>
 						</DataGrid.Resources>
 						<DataGrid.Columns>
-							<DataGridTextColumn Header="" Binding="{Binding Index, Mode=OneWay}" Width="Auto" ElementStyle="{StaticResource TextColumnElementStyle}"/>
+							<DataGridTextColumn Header="i" Binding="{Binding Index, Mode=OneWay}" Width="Auto" ElementStyle="{StaticResource TextColumnElementStyle}"/>
 							<DataGridTemplateColumn Width="Auto" HeaderStyle="{StaticResource ColumnHeaderCenter}"
 												CanUserResize="False">
 								<DataGridTemplateColumn.CellTemplate>
@@ -169,13 +168,21 @@
 				<StackPanel x:Name="Edit_panel" VerticalAlignment="Center" Orientation="Vertical"
 						Visibility="{Binding EditableResource, Mode=OneWay, Converter={exconv:ObjectNotNullVisibilityConverter}}"
 						Margin="10,0,10,0">
-					<exc:TextBoxEx HintText="Name.." Margin="0,0,0,25" Height="24" Text="{Binding EditableResource.Name}"/>
+					<exc:TextBoxEx x:Name="NewName_TB" HintText="Name.." Margin="0,0,0,25" Height="24" Text="{Binding EditableResource.Name}"/>
 
 					<DockPanel Margin="0,0,0,25" Height="24">
-						<exc:ButtonEx ButtonBehavior="ImageWithOpacity" DockPanel.Dock="Right" Command="{Binding SelectResourcePathCommand}">
+						<exc:ButtonEx x:Name="FindPath_Btn" ButtonBehavior="ImageWithOpacity" DockPanel.Dock="Right" Command="{Binding SelectResourcePathCommand}">
 							<Image Source="{StaticResource compass__1_DrawingImage}"/>
 						</exc:ButtonEx>
-						<exc:TextBoxEx HintText="Path.." Text="{Binding EditableResource.Path, Mode=TwoWay}"/>
+						<exc:TextBoxEx x:Name="NewPath_TB" HintText="Path.." Text="{Binding EditableResource.Path, Mode=TwoWay}"/>
+					</DockPanel>
+
+					<DockPanel Margin="0 0 0 25" Height="24" LastChildFill="False">
+						<exc:TextBoxEx x:Name="NewIndex_TB" HintText="Index.." Width="40" Text="{Binding EditableResource.Index2}">
+							<!--<i:Interaction.Behaviors>
+								<exi:InputHandleBehavior MaskType="OnlyDigits"/>
+							</i:Interaction.Behaviors>-->
+						</exc:TextBoxEx>
 					</DockPanel>
 
 					<TextBlock Foreground="DarkCyan" HorizontalAlignment="Center" Height="24" Text="{Binding EditableResource.FormattedSize, Mode=OneWay, TargetNullValue='File not found'}"/>
