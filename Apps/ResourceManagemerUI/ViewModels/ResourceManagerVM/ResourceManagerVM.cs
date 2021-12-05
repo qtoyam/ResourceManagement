@@ -32,6 +32,13 @@ namespace ResourceManagerUI.ViewModels
 	[ViewModel]
 	public sealed partial class ResourceManagerVM : IDisposable
 	{
+#if DEBUG
+		public ResourceManagerVM() : this(null)
+		{
+
+		}
+#endif
+
 		private bool _unsaved = false;
 		public bool Unsaved
 		{
