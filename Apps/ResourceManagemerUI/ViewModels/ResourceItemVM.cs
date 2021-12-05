@@ -3,8 +3,6 @@ using System.IO;
 
 using WPFCoreEx.Bases;
 using ResourceManagerUI.Helpers;
-using System.Text;
-using System.Text.Json.Serialization;
 using ResourceManagerUI.Models;
 
 namespace ResourceManagerUI.ViewModels
@@ -12,7 +10,6 @@ namespace ResourceManagerUI.ViewModels
 	public class ResourceItemVM : NotifyPropBase, IResourceItem
 	{
 		private FileInfo? _file = null;
-		[JsonIgnore]
 		public ContentCacheVM ContentCache { get; } = new();
 
 		private string? _name = null;
